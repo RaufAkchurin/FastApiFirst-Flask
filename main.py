@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends
 from pydantic import BaseModel
+from sqladmin import Admin, ModelView
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 
@@ -64,3 +65,16 @@ async def create_channel(channel: ChannelBase, db: Session = Depends(get_db)):
 async def get_channels(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
     channels = db.query(Channel).offset(skip).limit(limit).all()
     return channels
+
+
+# SQL Alchemy Admin panel
+admin = Admin(app, engine)
+
+
+class ChannelAdmin(ModelView, model=Channel):
+    column_list = '__all__'
+    name = "Каналы телеграм"
+    name_plural = "Каналы телеграм"
+
+
+admin.add_view(ChannelAdmin)
