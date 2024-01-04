@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends
 from pydantic import BaseModel, constr
 from sqladmin import Admin, ModelView
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Text, CheckConstraint
+from sqlalchemy.orm import sessionmaker, declarative_base, Session, relationship
 
 DATABASE_URL = "postgresql+psycopg2://user:password@localhost/dbname"
 
@@ -13,11 +13,15 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 # TODO -- DB models --
+
+
 class Channel(Base):
-    __tablename__ = "channels"
+    __tablename__ = "channel"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(length=20), index=True, nullable=False)
     channel_chat_id = Column(String(length=14), nullable=False)
+
+    posts = relationship("Post", back_populates="chanel")
 
 
 class Country(Base):
@@ -25,14 +29,39 @@ class Country(Base):
     id = Column(Integer, primary_key=True, index=True)
     code = Column(String(length=2), index=True, nullable=False, unique=True)
 
+    cities = relationship("City", back_populates="country")
+
+    def __str__(self):
+        return self.code
+
 
 class City(Base):
     __tablename__ = "city"
     id = Column(Integer, primary_key=True, index=True)
-    country = Column(ForeignKey("country.id", ondelete="CASCADE"))
+    country_id = Column(ForeignKey("country.id", ondelete="CASCADE"))
+    country = relationship("Country", back_populates="cities")
     name = Column(String(length=100), index=True, nullable=False, unique=True)
     code = Column(String(length=3), index=True, nullable=False, unique=True, comment='IATA код города')
 
+    def __str__(self):
+        return self.name
+
+
+class Post(Base):
+    __tablename__ = "post"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(length=40), index=True, nullable=False)
+    chanel_id = Column(ForeignKey("channel.id", ondelete="CASCADE"))
+    chanel = relationship("Channel", back_populates="posts")
+    text = Column(Text, nullable=False)
+    picture = Column(String())
+    last_viewed_destination_index = Column(Integer, default=-1, comment="Индекс последнего опубликованого направления")
+    count_of_directions_in_post = Column(Integer, default=4)
+
+    __table_args__ = (
+        CheckConstraint('count_of_directions_in_post >= 1 AND count_of_directions_in_post <= 4',
+                        name='check_count_of_directions'),
+    )
 
 Base.metadata.create_all(bind=engine)
 
